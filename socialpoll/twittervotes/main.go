@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/bitly/go-nsq"
 	"gopkg.in/mgo.v2"
 	"log"
 )
@@ -27,11 +28,26 @@ func loadOptions() ([]string, error) {
 	var options []string
 	iter := db.DB("ballots").C("polls").Find(nil).Iter()
 	var p poll
-	for iter.Next(&p)  {
+	for iter.Next(&p) {
 		options = append(options, p.Options...)
 	}
 	iter.Close()
-	return options,  iter.Err()
+	return options, iter.Err()
+}
+
+func publishVotes(votes <-chan string) <-chan struct{} {
+	stopchan := make(chan struct{}, 1)
+	pub, _ := nsq.NewProducer("localhost:4510", nsq.NewConfig())
+	go func() {
+		for vote := range votes {
+			pub.Publish("votes", []byte(vote))
+		}
+		log.Println("Publisher: 停止中です")
+		pub.Stop()
+		log.Println("Publisher: 停止しました")
+		stopchan <- struct{}{}
+	}()
+	return stopchan
 }
 
 func main() {
