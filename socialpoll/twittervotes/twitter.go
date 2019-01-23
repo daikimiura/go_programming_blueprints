@@ -105,7 +105,7 @@ func readFromTwitter(votes chan<- string) {
 	}
 
 	query := make(url.Values)
-	query.Set("track",  strings.Join(options, ","))
+	query.Set("track", strings.Join(options, ","))
 	req, err := http.NewRequest("POST", u.String(), strings.NewReader(query.Encode()))
 
 	if err != nil {
@@ -135,4 +135,26 @@ func readFromTwitter(votes chan<- string) {
 			}
 		}
 	}
+}
+
+func startTwitterStream(stopchan <-chan struct{}, votes chan<- string) <-chan  struct{} {
+	stoppedchan := make(chan struct{}, 1)
+	go func() {
+		defer func() {
+			stoppedchan <- struct{}{}
+		}()
+		for {
+			select {
+			case <-stopchan:
+				log.Println("twitterへの問い合わせを終了します...")
+				return
+			default:
+				log.Println("twitterに問い合わせています...")
+				readFromTwitter(votes)
+				log.Println("(待機中)")
+				time.Sleep(10 * time.Second)
+			}
+		}
+	}()
+	return stoppedchan
 }
