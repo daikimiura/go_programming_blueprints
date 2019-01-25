@@ -4,6 +4,11 @@ import (
 	"github.com/bitly/go-nsq"
 	"gopkg.in/mgo.v2"
 	"log"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 )
 
 var db *mgo.Session
@@ -51,5 +56,46 @@ func publishVotes(votes <-chan string) <-chan struct{} {
 }
 
 func main() {
+	var stoplock sync.Mutex
+	stop := false
+	stopChan := make(chan struct{}, 1)
+	signalChan := make(chan os.Signal, 1)
 
+	go func() {
+		<-signalChan
+		stoplock.Lock()
+		stop = true
+		stoplock.Unlock()
+		log.Println("停止します...")
+		stopChan <- struct{}{}
+		closeConn()
+	}()
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
+	if err := dialdb(); err != nil {
+		log.Fatalln("MongoDBへのダイヤルに失敗しました: ", err)
+	}
+	defer closedb()
+
+	votes := make(chan string)
+	publisherStopperChan := publishVotes(votes)
+	twitterStoppedChan := startTwitterStream(stopChan, votes)
+
+	go func() {
+		for {
+			time.Sleep(1 * time.Minute)
+			closeConn()
+			stoplock.Lock()
+			if stop {
+				stoplock.Unlock()
+				break
+			}
+
+			stoplock.Unlock()
+		}
+	}()
+
+	<-twitterStoppedChan
+	close(votes)
+	<-publisherStopperChan
 }
