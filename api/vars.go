@@ -10,7 +10,7 @@ var (
 	vars     map[*http.Request]map[string]interface{}
 )
 
-func openVars(r *http.Request) {
+func OpenVars(r *http.Request) {
 	varsLock.Lock()
 	if vars == nil {
 		vars = map[*http.Request]map[string]interface{}{}
