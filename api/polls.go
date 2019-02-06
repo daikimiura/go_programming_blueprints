@@ -66,3 +66,20 @@ func handlePollsPost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Location", "polls/"+p.ID.Hex())
 	respond(w, r, http.StatusCreated, nil)
 }
+
+func handlePollsDelete(w http.ResponseWriter, r *http.Request) {
+	db := GetVar(r, "db").(*mgo.Database)
+	c := db.C("polls")
+	p := NewPath(r.URL.Path)
+	if !p.HasID() {
+		respondErr(w, r, http.StatusMethodNotAllowed, "全ての調査項目を削除することはできません")
+		return
+	}
+
+	if err := c.RemoveId(bson.ObjectIdHex(p.ID)); err != nil {
+		respondErr(w, r, http.StatusInternalServerError, "調査項目の削除に失敗しました", err)
+		return
+	}
+
+	respond(w, r, http.StatusOK, nil)
+}
