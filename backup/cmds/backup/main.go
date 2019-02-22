@@ -53,7 +53,7 @@ func main() {
 		return
 	}
 
-	switch strings.ToLower(args[1]) {
+	switch strings.ToLower(args[0]) {
 	case "list":
 		var path path
 		col.ForEach(func(i int, data []byte) bool {
@@ -79,5 +79,21 @@ func main() {
 			fmt.Printf("+ %s\n", path)
 		}
 	case "remove":
+		var path path
+		col.RemoveEach(func(i int, data []byte) (bool, bool) {
+			err := json.Unmarshal(data, &path)
+			if err != nil {
+				fatalErr = err
+				return false, true
+			}
+
+			for _, p := range args[1:] {
+				if path.Path == p {
+					fmt.Printf("- %s\n", path)
+					return true, false
+				}
+			}
+			return false, false
+		})
 	}
 }
