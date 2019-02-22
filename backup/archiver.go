@@ -8,6 +8,7 @@ import (
 )
 
 type Archiver interface {
+	DestFmt() string
 	Archive(src, dest string) error
 }
 
@@ -49,4 +50,8 @@ func (z *zipper) Archive(src, dest string) error {
 		io.Copy(f, in)
 		return nil
 	})
+}
+
+func (z *zipper)  DestFmt() string {
+	return "%d.zip"
 }
