@@ -4,9 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"github.com/daikimiura/go_programming_blueprints/backup"
 	"github.com/matryer/filedb"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 type path struct {
@@ -66,5 +71,21 @@ func main() {
 	if len(m.Paths) < 1 {
 		fatalErr = errors.New("パスがありません。backupツールを使って追加してください")
 		return
+	}
+
+	check(m, col)
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
+Loop:
+	for {
+		select {
+		case <-time.After(time.Duration(*interval) * time.Second):
+			check(m, col)
+		case <-signalChan:
+			fmt.Println()
+			log.Printf("終了します...")
+			break Loop
+		}
 	}
 }
